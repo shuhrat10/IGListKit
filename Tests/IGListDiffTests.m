@@ -10,7 +10,7 @@
 #import "IGListDiffTests.h"
 
 #import <XCTest/XCTest.h>
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 
 #import <IGListKit/IGListDiff.h>
 #import <IGListKit/IGListExperiments.h>
@@ -43,22 +43,22 @@ static NSArray *sorted(NSArray *arr) {
 
 
 @interface IGListIndexSetResult (UnitTests)
-- (NSUInteger)changeCount;
+- (NSInteger)changeCount;
 @end
 
 @implementation IGListIndexSetResult (UnitTests)
-- (NSUInteger)changeCount {
+- (NSInteger)changeCount {
     return self.inserts.count + self.deletes.count + self.moves.count + self.updates.count;
 }
 @end
 
 
 @interface IGListIndexPathResult (UnitTests)
-- (NSUInteger)changeCount;
+- (NSInteger)changeCount;
 @end
 
 @implementation IGListIndexPathResult (UnitTests)
-- (NSUInteger)changeCount {
+- (NSInteger)changeCount {
     return self.inserts.count + self.deletes.count + self.moves.count + self.updates.count;
 }
 @end

@@ -15,12 +15,12 @@
 import UIKit
 import IGListKit
 
-class DisplayViewController: UIViewController, IGListAdapterDataSource {
+final class DisplayViewController: UIViewController, IGListAdapterDataSource {
 
     lazy var adapter: IGListAdapter = {
         return IGListAdapter(updater: IGListAdapterUpdater(), viewController: self, workingRangeSize: 0)
     }()
-    let collectionView = IGListCollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+    let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
 
     override func viewDidLoad() {
         super.viewDidLoad()

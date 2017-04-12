@@ -11,11 +11,13 @@
 #import <IGListKit/IGListSectionType.h>
 #import <IGListKit/IGListMacros.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 /**
- An instace of `IGListStackedSectionController` is a clustered section controller, 
- composed of many child section controllers. It constructs and routes item-level
- indexes to the appropriate child section controller with a local index. This lets you build section controllers made up
- of individual units that can be shared and reused with other section controllers.
+ An instance of `IGListStackedSectionController` is a clustered section controller, composed of many child section
+ controllers. It constructs and routes item-level indexes to the appropriate child section controller with a local
+ index. This lets you build section controllers made up of individual units that can be shared and reused with other
+ section controllers.
 
  For example, you can create a "Comments" section controller that displays lists of text that is used alongside photo,
  video, or slideshow section controllers. You then have four small and manageable section controllers instead of one
@@ -46,3 +48,5 @@ IGLK_SUBCLASSING_RESTRICTED
 + (instancetype)new NS_UNAVAILABLE;
 
 @end
+
+NS_ASSUME_NONNULL_END

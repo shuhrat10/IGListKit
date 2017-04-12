@@ -21,7 +21,7 @@ final class SingleSectionViewController: UIViewController, IGListAdapterDataSour
         return IGListAdapter(updater: IGListAdapterUpdater(), viewController: self, workingRangeSize: 0)
     }()
     
-    let collectionView = IGListCollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
+    let collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
     
     let data = Array(0..<20)
     
@@ -49,7 +49,7 @@ final class SingleSectionViewController: UIViewController, IGListAdapterDataSour
     func listAdapter(_ listAdapter: IGListAdapter, sectionControllerFor object: Any) -> IGListSectionController {
         let configureBlock = { (item: Any, cell: UICollectionViewCell) in
             guard let cell = cell as? NibCell, let number = item as? Int else { return }
-            cell.textLabel.text = "Cell: \(number + 1)"
+            cell.text = "Cell: \(number + 1)"
         }
         
         let sizeBlock = { (item: Any, context: IGListCollectionContext?) -> CGSize in
@@ -69,9 +69,11 @@ final class SingleSectionViewController: UIViewController, IGListAdapterDataSour
     
     // MARK: - IGListSingleSectionControllerDelegate
     
-    func didSelect(_ sectionController: IGListSingleSectionController) {
+    func didSelect(_ sectionController: IGListSingleSectionController, with object: Any) {
         let section = adapter.section(for: sectionController) + 1
-        let alert = UIAlertController(title: "Section \(section) was selected \u{1F389}", message: nil, preferredStyle: .alert)
+        let alert = UIAlertController(title: "Section \(section) was selected \u{1F389}",
+                                      message: "Cell Object: " + String(describing: object),
+                                      preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Dismiss", style: .default, handler: nil))
         present(alert, animated: true, completion: nil)
     }

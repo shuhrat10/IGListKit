@@ -12,7 +12,7 @@
 #import <IGListKit/IGListAdapterDataSource.h>
 #import <IGListKit/IGListAdapterDelegate.h>
 #import <IGListKit/IGListCollectionContext.h>
-#import <IGListKit/IGListCollectionView.h>
+
 #import <IGListKit/IGListExperiments.h>
 #import <IGListKit/IGListSectionType.h>
 #import <IGListKit/IGListMacros.h>
@@ -24,9 +24,9 @@
 NS_ASSUME_NONNULL_BEGIN
 
 /**
- A block to execute when list updates completes.
+ A block to execute when the list updates are completed.
 
- @param finished Specifies whether or not the updates finished.
+ @param finished Specifies whether or not the update animations completed successfully.
  */
 typedef void (^IGListUpdaterCompletion)(BOOL finished);
 
@@ -49,10 +49,10 @@ IGLK_SUBCLASSING_RESTRICTED
 /**
  The collection view used with the adapter.
  */
-@property (nonatomic, nullable, weak) IGListCollectionView *collectionView;
+@property (nonatomic, nullable, weak) UICollectionView *collectionView;
 
 /**
- The object that acts as the data source for the list adapter.
+ The object that acts as the data source for the adapter.
  */
 @property (nonatomic, nullable, weak) id <IGListAdapterDataSource> dataSource;
 
@@ -74,6 +74,11 @@ IGLK_SUBCLASSING_RESTRICTED
 @property (nonatomic, nullable, weak) id <UIScrollViewDelegate> scrollViewDelegate;
 
 /**
+ The updater for the adapter.
+ */
+@property (nonatomic, strong, readonly) id <IGListUpdatingDelegate> updater;
+
+/**
  A bitmask of experiments to conduct on the adapter.
  */
 @property (nonatomic, assign) IGListExperiment experiments;
@@ -81,7 +86,7 @@ IGLK_SUBCLASSING_RESTRICTED
 /**
  Initializes a new `IGListAdapter` object.
 
- @param updatingDelegate An object that manages updates to the collection view.
+ @param updater An object that manages updates to the collection view.
  @param viewController   The view controller that will house the adapter.
  @param workingRangeSize The number of objects before and after the viewport to consider within the working range.
 
@@ -94,16 +99,16 @@ IGLK_SUBCLASSING_RESTRICTED
 
  To opt out of using the working range, you can provide a value of `0`.
  */
-- (instancetype)initWithUpdater:(id <IGListUpdatingDelegate>)updatingDelegate
+- (instancetype)initWithUpdater:(id <IGListUpdatingDelegate>)updater
                  viewController:(nullable UIViewController *)viewController
                workingRangeSize:(NSInteger)workingRangeSize NS_DESIGNATED_INITIALIZER;
 
 /**
- Perform an update from the previous state of the data source. This is analagous to calling
+ Perform an update from the previous state of the data source. This is analogous to calling
  `-[UICollectionView performBatchUpdates:completion:]`.
 
  @param animated   A flag indicating if the transition should be animated.
- @param completion The block to execute when the update completes.
+ @param completion The block to execute when the updates complete.
  */
 - (void)performUpdatesAnimated:(BOOL)animated completion:(nullable IGListUpdaterCompletion)completion;
 
@@ -122,6 +127,15 @@ IGLK_SUBCLASSING_RESTRICTED
 - (void)reloadObjects:(NSArray *)objects;
 
 /**
+ Query the section controller at a given section index. Constant time lookup.
+ 
+ @param section A section in the list.
+
+ @return A section controller or `nil` if the section does not exist.
+ */
+- (nullable IGListSectionController <IGListSectionType> *)sectionControllerForSection:(NSInteger)section;
+
+/**
  Query the section index of a list. Constant time lookup.
 
  @param sectionController A list object.
@@ -135,7 +149,7 @@ IGLK_SUBCLASSING_RESTRICTED
 
  @param object An object from the data source.
 
- @return An section controller or `nil` if `object` is not in the list.
+ @return A section controller or `nil` if `object` is not in the list.
 
  @see `-[IGListAdapterDataSource listAdapter:sectionControllerForObject:]`
  */
@@ -146,7 +160,7 @@ IGLK_SUBCLASSING_RESTRICTED
  
  @param sectionController A section controller in the list.
  
- @return The object for the specified section controller, or nil if not found.
+ @return The object for the specified section controller, or `nil` if not found.
  */
 - (nullable id)objectForSectionController:(IGListSectionController <IGListSectionType> *)sectionController;
 
@@ -169,7 +183,7 @@ IGLK_SUBCLASSING_RESTRICTED
 - (NSInteger)sectionForObject:(id)object;
 
 /**
- Returns a copy of all the objects currently powering the adapter.
+ Returns a copy of all the objects currently driving the adapter.
 
  @return An array of objects.
  */
@@ -190,13 +204,22 @@ IGLK_SUBCLASSING_RESTRICTED
 - (NSArray *)visibleObjects;
 
 /**
- Scrolls to the sepcified object in the list adapter.
+ An unordered array of the currently visible cells for a given object.
+ 
+ @param object An object in the list
+ 
+ @return An array of collection view cells.
+ */
+- (NSArray<UICollectionViewCell *> *)visibleCellsForObject:(id)object;
+
+/**
+ Scrolls to the specified object in the list adapter.
 
  @param object             The object to which to scroll.
  @param supplementaryKinds The types of supplementary views in the section.
- @param scrollDirection    A flag indicating the direction to scroll.
+ @param scrollDirection    An option indicating the direction to scroll.
  @param scrollPosition     An option that specifies where the item should be positioned when scrolling finishes. 
- @param animated           A flag indicating if the transition should be animated.
+ @param animated           A flag indicating if the scrolling should be animated.
  */
 - (void)scrollToObject:(id)object
     supplementaryKinds:(nullable NSArray<NSString *> *)supplementaryKinds

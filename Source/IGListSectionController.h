@@ -15,6 +15,8 @@
 #import <IGListKit/IGListSupplementaryViewSource.h>
 #import <IGListKit/IGListWorkingRangeDelegate.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 /**
  The base class for section controllers used in a list. This class is intended to be subclassed.
  */
@@ -96,12 +98,14 @@
 @property (nonatomic, weak, nullable) id <IGListWorkingRangeDelegate> workingRangeDelegate;
 
 /**
- An object that handles display events for the section controller. Can be `nil`.
+ An object that handles scroll events for the section controller. Can be `nil`.
 
- @return An object that conforms to `IGListDisplayDelegate` or `nil`.
+ @return An object that conforms to `IGListScrollDelegate` or `nil`.
 
  @note You may wish to return `self` if your section controller implements this protocol.
  */
 @property (nonatomic, weak, nullable) id <IGListScrollDelegate> scrollDelegate;
 
 @end
+
+NS_ASSUME_NONNULL_END

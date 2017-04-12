@@ -33,7 +33,7 @@ static void * kStackedSectionControllerKey = &kStackedSectionControllerKey;
 static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerIndexKey;
 
 - (void)ig_setStackedSectionControllerIndex:(NSInteger)stackedSectionControllerIndex {
-    objc_setAssociatedObject(self, kStackedSectionControllerIndexKey, @(stackedSectionControllerIndex), OBJC_ASSOCIATION_ASSIGN);
+    objc_setAssociatedObject(self, kStackedSectionControllerIndexKey, @(stackedSectionControllerIndex), OBJC_ASSOCIATION_COPY_NONATOMIC);
 }
 
 - (NSInteger)ig_stackedSectionControllerIndex {
@@ -49,10 +49,6 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
         for (IGListSectionController<IGListSectionType> *sectionController in sectionControllers) {
             sectionController.collectionContext = self;
             sectionController.viewController = self.viewController;
-
-            if (self.supplementaryViewSource == nil) {
-                self.supplementaryViewSource = sectionController.supplementaryViewSource;
-            }
         }
 
         _visibleSectionControllers = [[NSCountedSet alloc] init];
@@ -60,8 +56,7 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 
         self.displayDelegate = self;
         self.scrollDelegate = self;
-
-        [self reloadData];
+        self.workingRangeDelegate = self;
     }
     return self;
 }
@@ -73,12 +68,12 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
     NSMutableArray *sectionControllers = [[NSMutableArray alloc] init];
     NSMutableArray *offsets = [[NSMutableArray alloc] init];
 
-    NSUInteger numberOfItems = 0;
+    NSInteger numberOfItems = 0;
     for (IGListSectionController<IGListSectionType> *sectionController in self.sectionControllers) {
         [offsets addObject:@(numberOfItems)];
 
-        const NSUInteger items = [sectionController numberOfItems];
-        for (NSUInteger i = 0; i < items; i++) {
+        const NSInteger items = [sectionController numberOfItems];
+        for (NSInteger i = 0; i < items; i++) {
             [sectionControllers addObject:sectionController];
         }
 
@@ -98,19 +93,24 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 }
 
 - (NSInteger)offsetForSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
-    const NSUInteger index = [self.sectionControllers indexOfObject:sectionController];
+    const NSInteger index = [self.sectionControllers indexOfObject:sectionController];
     IGAssert(index != NSNotFound, @"Querying offset for an undocumented section controller");
     return [self.sectionControllerOffsets[index] integerValue];
 }
 
 - (NSInteger)localIndexForSectionController:(IGListSectionController<IGListSectionType> *)sectionController index:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offset = [self offsetForSectionController:sectionController];
     IGAssert(offset <= index, @"Section controller offset must be less than or equal to the item index");
     return index - offset;
 }
 
+- (NSInteger)relativeIndexForSectionController:(IGListSectionController<IGListSectionType> *)sectionController fromLocalIndex:(NSInteger)index {
+    const NSInteger offset = [self offsetForSectionController:sectionController];
+    return index + offset;
+}
+
 - (NSIndexSet *)itemIndexesForSectionController:(IGListSectionController<IGListSectionType> *)sectionController indexes:(NSIndexSet *)indexes {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offset = [self offsetForSectionController:sectionController];
     NSMutableIndexSet *itemIndexes = [[NSMutableIndexSet alloc] init];
     [indexes enumerateIndexesUsingBlock:^(NSUInteger idx, BOOL *stop) {
         [itemIndexes addIndex:(idx + offset)];
@@ -118,6 +118,15 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
     return itemIndexes;
 }
 
+- (id<IGListSupplementaryViewSource>)supplementaryViewSource {
+    for (IGListSectionController *sectionController in self.sectionControllers) {
+        id<IGListSupplementaryViewSource> supplementaryViewSource = sectionController.supplementaryViewSource;
+        if (supplementaryViewSource != nil) {
+            return supplementaryViewSource;
+        }
+    }
+    return nil;
+}
 
 #pragma mark - IGListSectionType
 
@@ -127,13 +136,13 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 
 - (CGSize)sizeForItemAtIndex:(NSInteger)index {
     IGListSectionController<IGListSectionType> *sectionController = [self sectionControllerForObjectIndex:index];
-    const NSUInteger localIndex = [self localIndexForSectionController:sectionController index:index];
+    const NSInteger localIndex = [self localIndexForSectionController:sectionController index:index];
     return [sectionController sizeForItemAtIndex:localIndex];
 }
 
 - (UICollectionViewCell *)cellForItemAtIndex:(NSInteger)index {
     IGListSectionController<IGListSectionType> *sectionController = [self sectionControllerForObjectIndex:index];
-    const NSUInteger localIndex = [self localIndexForSectionController:sectionController index:index];
+    const NSInteger localIndex = [self localIndexForSectionController:sectionController index:index];
     return [sectionController cellForItemAtIndex:localIndex];
 }
 
@@ -141,11 +150,12 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
     for (IGListSectionController<IGListSectionType> *sectionController in self.sectionControllers) {
         [sectionController didUpdateToObject:object];
     }
+    [self reloadData];
 }
 
 - (void)didSelectItemAtIndex:(NSInteger)index {
     IGListSectionController<IGListSectionType> *sectionController = [self sectionControllerForObjectIndex:index];
-    const NSUInteger localIndex = [self localIndexForSectionController:sectionController index:index];
+    const NSInteger localIndex = [self localIndexForSectionController:sectionController index:index];
     [sectionController didSelectItemAtIndex:localIndex];
 }
 
@@ -155,14 +165,27 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
     return [self.collectionContext containerSize];
 }
 
+- (UIEdgeInsets)containerInset {
+    return [self.collectionContext containerInset];
+}
+
+- (CGSize)insetContainerSize {
+    return [self.collectionContext insetContainerSize];
+}
+
+- (CGSize)containerSizeForSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
+    const UIEdgeInsets inset = sectionController.inset;
+    return CGSizeMake(self.containerSize.width - inset.left - inset.right,
+                      self.containerSize.height - inset.top - inset.bottom);
+}
+
 - (NSInteger)indexForCell:(UICollectionViewCell *)cell sectionController:(IGListSectionController<IGListSectionType> *)sectionController {
-    const NSUInteger index = [self.collectionContext indexForCell:cell sectionController:self];
+    const NSInteger index = [self.collectionContext indexForCell:cell sectionController:self];
     return [self localIndexForSectionController:sectionController index:index];
 }
 
 - (UICollectionViewCell *)cellForItemAtIndex:(NSInteger)index sectionController:(IGListSectionController<IGListSectionType> *)sectionController {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
-    return [self.collectionContext cellForItemAtIndex:(index + offset) sectionController:self];
+    return [self.collectionContext cellForItemAtIndex: [self relativeIndexForSectionController:sectionController fromLocalIndex:index] sectionController:self];
 }
 
 - (NSArray<UICollectionViewCell *> *)visibleCellsForSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
@@ -170,17 +193,29 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
     id<IGListCollectionContext> collectionContext = self.collectionContext;
     NSArray *visibleCells = [collectionContext visibleCellsForSectionController:self];
     for (UICollectionViewCell *cell in visibleCells) {
-        const NSUInteger index = [collectionContext indexForCell:cell sectionController:self];
+        const NSInteger index = [collectionContext indexForCell:cell sectionController:self];
         if (self.sectionControllersForItems[index] == sectionController) {
             [cells addObject:cell];
         }
     }
-    return [cells copy];
+    return cells;
+}
+
+- (NSArray<NSIndexPath *> *)visibleIndexPathsForSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
+    NSMutableArray *paths = [NSMutableArray new];
+    id<IGListCollectionContext> collectionContext = self.collectionContext;
+    NSArray *visiblePaths = [collectionContext visibleIndexPathsForSectionController:self];
+    for (NSIndexPath *path in visiblePaths) {
+        if (self.sectionControllersForItems[path.item] == sectionController) {
+            [paths addObject:path];
+        }
+    }
+    return paths;
 }
 
 - (void)deselectItemAtIndex:(NSInteger)index sectionController:(IGListSectionController<IGListSectionType> *)sectionController animated:(BOOL)animated {
-    const NSUInteger localIndex = [self localIndexForSectionController:sectionController index:index];
-    [self.collectionContext deselectItemAtIndex:localIndex sectionController:self animated:animated];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
+    [self.collectionContext deselectItemAtIndex:offsetIndex sectionController:self animated:animated];
 }
 
 - (NSInteger)sectionForSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
@@ -190,52 +225,52 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 - (UICollectionViewCell *)dequeueReusableCellOfClass:(Class)cellClass
                                 forSectionController:(IGListSectionController<IGListSectionType> *)sectionController
                                              atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableCellOfClass:cellClass
                                                                          forSectionController:self
-                                                                                      atIndex:(index + offset)];
+                                                                                      atIndex:offsetIndex];
 }
 
 - (UICollectionViewCell *)dequeueReusableCellWithNibName:(NSString *)nibName
                                                   bundle:(NSBundle *)bundle
                                     forSectionController:(IGListSectionController<IGListSectionType> *)sectionController
                                                  atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableCellWithNibName:nibName
                                                                                            bundle:bundle
                                                                              forSectionController:self
-                                                                                          atIndex:(index + offset)];
+                                                                                          atIndex:offsetIndex];
 }
 
 - (UICollectionViewCell *)dequeueReusableCellFromStoryboardWithIdentifier:(NSString *)identifier
                                                      forSectionController:(IGListSectionController <IGListSectionType> *)sectionController
                                                                   atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableCellFromStoryboardWithIdentifier:identifier
                                                                                               forSectionController:self
-                                                                                                           atIndex:(index + offset)];
+                                                                                                           atIndex:offsetIndex];
 }
 
 - (UICollectionReusableView *)dequeueReusableSupplementaryViewOfKind:(NSString *)elementKind
                                                 forSectionController:(IGListSectionController<IGListSectionType> *)sectionController
                                                                class:(Class)viewClass
                                                              atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableSupplementaryViewOfKind:elementKind
                                                                                      forSectionController:self
                                                                                                     class:viewClass
-                                                                                                  atIndex:(index + offset)];
+                                                                                                  atIndex:offsetIndex];
 }
 
 - (UICollectionReusableView *)dequeueReusableSupplementaryViewFromStoryboardOfKind:(NSString *)elementKind
                                                                     withIdentifier:(NSString *)identifier
                                                               forSectionController:(IGListSectionController<IGListSectionType> *)sectionController
                                                                            atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableSupplementaryViewFromStoryboardOfKind:elementKind
                                                                                                          withIdentifier:identifier
                                                                                                    forSectionController:self
-                                                                                                                atIndex:(index + offset)];
+                                                                                                                atIndex:offsetIndex];
 }
 
 - (UICollectionReusableView *)dequeueReusableSupplementaryViewOfKind:(NSString *)elementKind
@@ -243,54 +278,81 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
                                                              nibName:(NSString *)nibName
                                                               bundle:(NSBundle *)bundle
                                                              atIndex:(NSInteger)index {
-    const NSUInteger offset = [self offsetForSectionController:sectionController];
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
     return (UICollectionViewCell *_Nonnull)[self.collectionContext dequeueReusableSupplementaryViewOfKind:elementKind
                                                                                      forSectionController:self
                                                                                                   nibName:nibName
                                                                                                    bundle:bundle
-                                                                                                  atIndex:(index + offset)];
+                                                                                                  atIndex:offsetIndex];
 }
 
-- (void)reloadInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
-    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
-    [self.collectionContext reloadInSectionController:self atIndexes:itemIndexes];
-}
-
-- (void)insertInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
-    [self reloadData];
-    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
-    [self.collectionContext insertInSectionController:self atIndexes:itemIndexes];
-}
-
-- (void)deleteInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
-    [self reloadData];
-    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
-    [self.collectionContext deleteInSectionController:self atIndexes:itemIndexes];
-}
-
-- (void)reloadSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
-    [self reloadData];
-    [self.collectionContext reloadSectionController:self];
-}
-
-- (void)performBatchAnimated:(BOOL)animated updates:(void (^)())updates completion:(void (^)(BOOL))completion {
-    [self.collectionContext performBatchAnimated:animated updates:^{
-        updates();
+- (void)performBatchAnimated:(BOOL)animated updates:(void (^)(id<IGListBatchContext>))updates completion:(void (^)(BOOL))completion {
+    __weak __typeof__(self) weakSelf = self;
+    [self.collectionContext performBatchAnimated:animated updates:^ (id<IGListBatchContext> batchContext) {
+        weakSelf.forwardingBatchContext = batchContext;
+        updates(weakSelf);
+        weakSelf.forwardingBatchContext = nil;
     } completion:^(BOOL finished) {
-        [self reloadData];
+        [weakSelf reloadData];
         if (completion) {
             completion(finished);
         }
     }];
 }
 
+- (void)scrollToSectionController:(IGListSectionController<IGListSectionType> *)sectionController
+                          atIndex:(NSInteger)index
+                   scrollPosition:(UICollectionViewScrollPosition)scrollPosition
+                         animated:(BOOL)animated {
+    const NSInteger offsetIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:index];
+    [self.collectionContext scrollToSectionController:self
+                                              atIndex:offsetIndex
+                                       scrollPosition:scrollPosition
+                                             animated:animated];
+}
+
+- (void)invalidateLayoutForSectionController:(IGListSectionController<IGListSectionType> *)sectionController completion:(void (^)(BOOL))completion {
+    [self.collectionContext invalidateLayoutForSectionController:self completion:completion];
+}
+
+#pragma mark - IGListBatchContext
+
+- (void)reloadInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
+    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
+    [self.forwardingBatchContext reloadInSectionController:self atIndexes:itemIndexes];
+}
+
+- (void)insertInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
+    [self reloadData];
+    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
+    [self.forwardingBatchContext insertInSectionController:self atIndexes:itemIndexes];
+}
+
+- (void)deleteInSectionController:(IGListSectionController<IGListSectionType> *)sectionController atIndexes:(NSIndexSet *)indexes {
+    [self reloadData];
+    NSIndexSet *itemIndexes = [self itemIndexesForSectionController:sectionController indexes:indexes];
+    [self.forwardingBatchContext deleteInSectionController:self atIndexes:itemIndexes];
+}
+
+- (void)moveInSectionController:(IGListSectionController<IGListSectionType> *)sectionController fromIndex:(NSInteger)fromIndex toIndex:(NSInteger)toIndex {
+    [self reloadData];
+    const NSInteger fromRelativeIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:fromIndex];
+    const NSInteger toRelativeIndex = [self relativeIndexForSectionController:sectionController fromLocalIndex:toIndex];
+    [self.forwardingBatchContext moveInSectionController:self fromIndex:fromRelativeIndex toIndex:toRelativeIndex];
+}
+
+- (void)reloadSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
+    [self reloadData];
+    [self.forwardingBatchContext reloadSectionController:self];
+}
 
 #pragma mark - IGListDisplayDelegate
 
 - (void)listAdapter:(IGListAdapter *)listAdapter willDisplaySectionController:(IGListSectionController<IGListSectionType> *)sectionController cell:(UICollectionViewCell *)cell atIndex:(NSInteger)index {
     IGListSectionController<IGListSectionType> *childSectionController = [self sectionControllerForObjectIndex:index];
-    const NSUInteger localIndex = [self localIndexForSectionController:childSectionController index:index];
+    const NSInteger localIndex = [self localIndexForSectionController:childSectionController index:index];
 
+    // update the assoc objects for use in didEndDisplay
     [cell ig_setStackedSectionController:childSectionController];
     [cell ig_setStackedSectionControllerIndex:localIndex];
 
@@ -306,8 +368,9 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 }
 
 - (void)listAdapter:(IGListAdapter *)listAdapter didEndDisplayingSectionController:(IGListSectionController<IGListSectionType> *)sectionController cell:(UICollectionViewCell *)cell atIndex:(NSInteger)index {
-    IGListSectionController<IGListSectionType> *childSectionController = [self sectionControllerForObjectIndex:index];
-    const NSUInteger localIndex = [self localIndexForSectionController:childSectionController index:index];
+    const NSInteger localIndex = [cell ig_stackedSectionControllerIndex];
+    IGListSectionController<IGListSectionType> *childSectionController = [cell ig_stackedSectionController];
+
     NSCountedSet *visibleSectionControllers = self.visibleSectionControllers;
     id<IGListDisplayDelegate> displayDelegate = [childSectionController displayDelegate];
 
@@ -332,13 +395,27 @@ static void * kStackedSectionControllerIndexKey = &kStackedSectionControllerInde
 
 - (void)listAdapter:(IGListAdapter *)listAdapter willBeginDraggingSectionController:(IGListSectionController<IGListSectionType> *)sectionController {
     for (IGListSectionController<IGListSectionType> *childSectionController in self.sectionControllers) {
-        [[childSectionController scrollDelegate] listAdapter:listAdapter willBeginDraggingSectionController:sectionController];
+        [[childSectionController scrollDelegate] listAdapter:listAdapter willBeginDraggingSectionController:childSectionController];
     }
 }
 
 - (void)listAdapter:(IGListAdapter *)listAdapter didEndDraggingSectionController:(IGListSectionController<IGListSectionType> *)sectionController willDecelerate:(BOOL)decelerate {
     for (IGListSectionController<IGListSectionType> *childSectionController in self.sectionControllers) {
         [[childSectionController scrollDelegate] listAdapter:listAdapter didEndDraggingSectionController:childSectionController willDecelerate:decelerate];
+    }
+}
+
+#pragma mark - IGListWorkingRangeDelegate
+
+- (void)listAdapter:(IGListAdapter *)listAdapter sectionControllerWillEnterWorkingRange:(IGListSectionController<IGListSectionType> *)sectionController {
+    for (IGListSectionController<IGListSectionType> *childSectionController in self.sectionControllers) {
+        [[childSectionController workingRangeDelegate] listAdapter:listAdapter sectionControllerWillEnterWorkingRange:childSectionController];
+    }
+}
+
+- (void)listAdapter:(IGListAdapter *)listAdapter sectionControllerDidExitWorkingRange:(IGListSectionController<IGListSectionType> *)sectionController {
+    for (IGListSectionController<IGListSectionType> *childSectionController in self.sectionControllers) {
+        [[childSectionController workingRangeDelegate] listAdapter:listAdapter sectionControllerDidExitWorkingRange:childSectionController];
     }
 }
 

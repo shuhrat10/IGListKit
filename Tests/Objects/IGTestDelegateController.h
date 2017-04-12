@@ -15,7 +15,9 @@
 
 @interface IGTestDelegateController : IGListSectionController <IGListSectionType, IGListDisplayDelegate, IGListWorkingRangeDelegate>
 
-@property (nonatomic, strong, readonly) IGTestObject *item;
+@property (nonatomic, strong) IGTestObject *item;
+
+@property (nonatomic, assign) CGFloat height;
 
 @property (nonatomic, copy) void (^itemUpdateBlock)();
 @property (nonatomic, copy) void (^cellConfigureBlock)(IGTestDelegateController *);

@@ -17,11 +17,11 @@ import IGListKit
 
 final class WorkingRangeSectionController: IGListSectionController, IGListSectionType, IGListWorkingRangeDelegate {
 
-    var height: Int?
-    var downloadedImage: UIImage?
-    var task: URLSessionDataTask?
+    private var height: Int?
+    private var downloadedImage: UIImage?
+    private var task: URLSessionDataTask?
 
-    var urlString: String? {
+    private var urlString: String? {
         guard let height = height,
             let width = collectionContext?.containerSize.width
             else { return nil }
@@ -51,7 +51,7 @@ final class WorkingRangeSectionController: IGListSectionController, IGListSectio
         let cellClass: AnyClass = index == 0 ? LabelCell.self : ImageCell.self
         let cell = collectionContext!.dequeueReusableCell(of: cellClass, for: self, at: index)
         if let cell = cell as? LabelCell {
-            cell.label.text = urlString
+            cell.text = urlString
         } else if let cell = cell as? ImageCell {
             cell.setImage(image: downloadedImage)
         }
@@ -78,7 +78,7 @@ final class WorkingRangeSectionController: IGListSectionController, IGListSectio
 
         task = URLSession.shared.dataTask(with: url) { data, response, err in
             guard let data = data, let image = UIImage(data: data) else {
-                return print("Error downloading \(urlString): \(err)")
+                return print("Error downloading \(urlString): " + String(describing: err))
             }
             DispatchQueue.main.async {
                 self.downloadedImage = image

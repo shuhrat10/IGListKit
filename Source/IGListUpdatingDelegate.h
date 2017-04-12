@@ -37,7 +37,7 @@ typedef void (^IGListReloadUpdateBlock)();
  Implement this protocol in order to handle both section and row based update events. Implementation should forward or
  coalesce these events to a backing store or collection.
  */
-@protocol IGListUpdatingDelegate
+@protocol IGListUpdatingDelegate <NSObject>
 
 /**
  Asks the delegate for the pointer functions for looking up an object in a collection.
@@ -94,12 +94,15 @@ typedef void (^IGListReloadUpdateBlock)();
 - (void)deleteItemsFromCollectionView:(UICollectionView *)collectionView indexPaths:(NSArray <NSIndexPath *> *)indexPaths;
 
 /**
- Tells the delegate to perform item reloads at the given index paths.
+ Tells the delegate to move an item from and to given index paths.
 
  @param collectionView The collection view on which to perform the transition.
- @param indexPaths     The index paths of items to reload.
+ @param fromIndexPath  The source index path of the item to move.
+ @param toIndexPath    The destination index path of the item to move.
  */
-- (void)reloadItemsInCollectionView:(UICollectionView *)collectionView indexPaths:(NSArray <NSIndexPath *> *)indexPaths;
+- (void)moveItemInCollectionView:(UICollectionView *)collectionView
+                   fromIndexPath:(NSIndexPath *)fromIndexPath
+                     toIndexPath:(NSIndexPath *)toIndexPath;
 
 /**
  Completely reload data in the collection.

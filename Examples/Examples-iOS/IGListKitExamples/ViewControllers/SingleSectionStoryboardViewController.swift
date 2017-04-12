@@ -21,7 +21,7 @@ final class SingleSectionStoryboardViewController: UIViewController, IGListAdapt
         return IGListAdapter(updater: IGListAdapterUpdater(), viewController: self, workingRangeSize: 0)
     }()
     
-    @IBOutlet weak var collectionView: IGListCollectionView!
+    @IBOutlet weak var collectionView: UICollectionView!
     
     let data = Array(0..<20)
     
@@ -42,7 +42,7 @@ final class SingleSectionStoryboardViewController: UIViewController, IGListAdapt
     func listAdapter(_ listAdapter: IGListAdapter, sectionControllerFor object: Any) -> IGListSectionController {
         let configureBlock = { (item: Any, cell: UICollectionViewCell) in
             guard let cell = cell as? StoryboardCell, let number = item as? Int else { return }
-            cell.textLabel.text = "Cell: \(number + 1)"
+            cell.text = "Cell: \(number + 1)"
         }
         let sizeBlock = { (item: Any, context: IGListCollectionContext?) -> CGSize in
             guard let context = context else { return .zero }
@@ -55,13 +55,11 @@ final class SingleSectionStoryboardViewController: UIViewController, IGListAdapt
         return sectionController
     }
     
-    func emptyView(for listAdapter: IGListAdapter) -> UIView? {
-        return nil
-    }
+    func emptyView(for listAdapter: IGListAdapter) -> UIView? { return nil }
     
     // MARK: - IGListSingleSectionControllerDelegate
     
-    func didSelect(_ sectionController: IGListSingleSectionController) {
+    func didSelect(_ sectionController: IGListSingleSectionController, with object: Any) {
         let section = adapter.section(for: sectionController) + 1
         let alert = UIAlertController(title: "Section \(section) was selected \u{1F389}", message: nil, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "Dismiss", style: .default, handler: nil))
