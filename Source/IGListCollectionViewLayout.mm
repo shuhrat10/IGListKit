@@ -123,10 +123,6 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
 
     NSMutableArray *result = [NSMutableArray new];
 
-    // since we iterate through sections ascending, we may hit a section who is only partially visible
-    // in that case we short circuit building layout attributes
-    BOOL remainingCellsOutOfRect = NO;
-
     const NSRange range = [self rangeOfSectionsInRect:rect];
     if (range.location == NSNotFound) {
         return nil;
@@ -152,12 +148,7 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
         for (NSInteger item = 0; item < itemCount; item++) {
             NSIndexPath *indexPath = [NSIndexPath indexPathForItem:item inSection:section];
             UICollectionViewLayoutAttributes *attributes = [self layoutAttributesForItemAtIndexPath:indexPath];
-            if (!CGRectIntersectsRect(attributes.frame, rect)) {
-                if (remainingCellsOutOfRect) {
-                    return result;
-                }
-            } else {
-                remainingCellsOutOfRect = YES;
+            if (CGRectIntersectsRect(attributes.frame, rect)) {
                 [result addObject:attributes];
             }
         }
@@ -173,6 +164,14 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
     UICollectionViewLayoutAttributes *attributes = _attributesCache[indexPath];
     if (attributes != nil) {
         return attributes;
+    }
+
+    // avoid OOB errors
+    const NSInteger section = indexPath.section;
+    const NSInteger item = indexPath.item;
+    if (section >= _sectionData.size()
+        || item >= _sectionData[section].itemBounds.size()) {
+        return nil;
     }
 
     attributes = [UICollectionViewLayoutAttributes layoutAttributesForCellWithIndexPath:indexPath];
@@ -192,8 +191,13 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
         return attributes;
     }
 
-    UICollectionView *collectionView = self.collectionView;
+    // avoid OOB errors
     const NSInteger section = indexPath.section;
+    if (section >= _sectionData.size()) {
+        return nil;
+    }
+
+    UICollectionView *collectionView = self.collectionView;
     const IGListSectionEntry entry = _sectionData[section];
     const CGFloat minY = CGRectGetMinY(entry.bounds);
 
@@ -296,7 +300,7 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
     if (_stickyHeaderOriginYAdjustment != stickyHeaderOriginYAdjustment) {
         _stickyHeaderOriginYAdjustment = stickyHeaderOriginYAdjustment;
 
-        IGListCollectionViewLayoutInvalidationContext *invalidationContext = [[IGListCollectionViewLayoutInvalidationContext alloc] init];
+        IGListCollectionViewLayoutInvalidationContext *invalidationContext = [IGListCollectionViewLayoutInvalidationContext new];
         invalidationContext.ig_invalidateSupplementaryAttributes = YES;
         [self invalidateLayoutWithContext:invalidationContext];
     }
@@ -349,15 +353,16 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
         // add the left inset in case the section falls on the same row as the previous
         // if the section is newlined then the x is reset
         itemX += insets.left;
-        
+
         // the farthest right the frame of an item in this section can go
         const CGFloat maxX = width - insets.right;
-        
+
         for (NSInteger item = 0; item < itemCount; item++) {
             NSIndexPath *indexPath = [NSIndexPath indexPathForItem:item inSection:section];
             const CGSize size = [delegate collectionView:collectionView layout:self sizeForItemAtIndexPath:indexPath];
 
-            IGAssert(size.width <= paddedWidth, @"Width of item %zi in section %zi must be less than container %.0f accounting for section insets %@",
+            IGAssert(size.width <= paddedWidth || fabs(size.width - paddedWidth) < FLT_EPSILON,
+                     @"Width of item %zi in section %zi must be less than container %.0f accounting for section insets %@",
                      item, section, width, NSStringFromUIEdgeInsets(insets));
             CGFloat itemWidth = MIN(size.width, paddedWidth);
 
@@ -376,7 +381,7 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
                     itemY += lineSpacing;
                 }
             }
-            
+
             const CGFloat distanceToRighEdge = paddedWidth - (itemX + itemWidth);
             if (self.stretchToEdge && distanceToRighEdge > 0 && distanceToRighEdge <= epsilon) {
                 itemWidth = paddedWidth - itemX;
@@ -442,7 +447,7 @@ static void adjustZIndexForAttributes(UICollectionViewLayoutAttributes *attribut
             }
         }
     }
-    
+
     return result;
 }
 

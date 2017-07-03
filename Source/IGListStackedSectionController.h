@@ -8,7 +8,7 @@
  */
 
 #import <IGListKit/IGListSectionController.h>
-#import <IGListKit/IGListSectionType.h>
+
 #import <IGListKit/IGListMacros.h>
 
 NS_ASSUME_NONNULL_BEGIN
@@ -24,7 +24,8 @@ NS_ASSUME_NONNULL_BEGIN
  huge class.
  */
 IGLK_SUBCLASSING_RESTRICTED
-@interface IGListStackedSectionController : IGListSectionController <IGListSectionType>
+NS_SWIFT_NAME(ListStackedSectionController)
+@interface IGListStackedSectionController : IGListSectionController
 
 /**
  Creates a new stacked section controller.
@@ -35,7 +36,7 @@ IGLK_SUBCLASSING_RESTRICTED
  
  @warning The first section controller that is the supplementary source decides which supplementary views get displayed.
  */
-- (instancetype)initWithSectionControllers:(NSArray <IGListSectionController<IGListSectionType> *> *)sectionControllers NS_DESIGNATED_INITIALIZER;
+- (instancetype)initWithSectionControllers:(NSArray <IGListSectionController *> *)sectionControllers NS_DESIGNATED_INITIALIZER;
 
 /**
  :nodoc:

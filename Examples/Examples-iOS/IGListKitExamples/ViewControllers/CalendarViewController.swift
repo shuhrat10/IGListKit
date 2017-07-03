@@ -15,24 +15,24 @@
 import UIKit
 import IGListKit
 
-final class CalendarViewController: UIViewController, IGListAdapterDataSource {
-    
-    lazy var adapter: IGListAdapter = {
-        return IGListAdapter(updater: IGListAdapterUpdater(), viewController: self, workingRangeSize: 0)
+final class CalendarViewController: UIViewController, ListAdapterDataSource {
+
+    lazy var adapter: ListAdapter = {
+        return ListAdapter(updater: ListAdapterUpdater(), viewController: self)
     }()
     let collectionView = UICollectionView(
         frame: .zero,
-        collectionViewLayout: IGListCollectionViewLayout(stickyHeaders: false, topContentInset: 0, stretchToEdge: false)
+        collectionViewLayout: ListCollectionViewLayout(stickyHeaders: false, topContentInset: 0, stretchToEdge: false)
     )
-    
+
     var months = [Month]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         let date = Date()
         let currentMonth = Calendar.current.component(.month, from: date)
-        
+
         let month = Month(
             name: DateFormatter().monthSymbols[currentMonth - 1],
             days: 30,
@@ -50,27 +50,27 @@ final class CalendarViewController: UIViewController, IGListAdapterDataSource {
             ]
         )
         months.append(month)
-        
+
         view.addSubview(collectionView)
         adapter.collectionView = collectionView
         adapter.dataSource = self
     }
-    
+
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         collectionView.frame = view.bounds
     }
-    
-    // MARK: IGListAdapterDataSource
-    
-    func objects(for listAdapter: IGListAdapter) -> [IGListDiffable] {
+
+    // MARK: ListAdapterDataSource
+
+    func objects(for listAdapter: ListAdapter) -> [ListDiffable] {
         return months
     }
-    
-    func listAdapter(_ listAdapter: IGListAdapter, sectionControllerFor object: Any) -> IGListSectionController {
+
+    func listAdapter(_ listAdapter: ListAdapter, sectionControllerFor object: Any) -> ListSectionController {
         return MonthSectionController()
     }
-    
-    func emptyView(for listAdapter: IGListAdapter) -> UIView? { return nil }
+
+    func emptyView(for listAdapter: ListAdapter) -> UIView? { return nil }
 
 }

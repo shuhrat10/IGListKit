@@ -2,12 +2,34 @@
 
 The changelog for `IGListKit`. Also see the [releases](https://github.com/instagram/IGListKit/releases) on GitHub.
 
-3.0.0 (**upcoming release**)
+3.1.0 (**upcoming release**)
+-----
+
+3.0.0
 -----
 
 This release closes the [3.0.0 milestone](https://github.com/Instagram/IGListKit/milestone/3).
 
 ### Breaking Changes
+
+- Added Swift annotation names which remove `IG` prefixes from class names, C functions, and other APIs. Note, this only affects Swift clients. [Robert Payne](https://github.com/robertjpayne) [(#593)](https://github.com/Instagram/IGListKit/pull/593)
+
+Example:
+
+```swift
+// OLD
+class MySectionController : IGListSectionController { ... }
+
+// NEW
+class MySectionController : ListSectionController { ... }
+
+// OLD
+IGListDiff([], [], .equality)
+
+// NEW
+ListDiff(oldArray: [], newArray: [], .equality)
+
+```
 
 - Updated `didSelect` delegate call in `IGListSingleSectionControllerDelegate` to include object. [Sherlouk](https://github.com/Sherlouk) [(#397)](https://github.com/Instagram/IGListKit/pull/397)
 
@@ -28,7 +50,7 @@ This release closes the [3.0.0 milestone](https://github.com/Instagram/IGListKit
 
 - Renamed `IGListAdapterUpdaterDelegate` method to `listAdapterUpdater:didPerformBatchUpdates:collectionView:`. [Vincent Peng](https://github.com/vincent-peng) [(#491)](https://github.com/Instagram/IGListKit/pull/491)
 
-- Moved section controller mutations to `IGListBatchContext`, provided as a parameter when calling `-perfomBatchAnimated:updates:completion` on a section controller's `collectionContext`. All updates (insert, delete, reload item/section controller) must now be done inside a batch update block. [Ryan Nystrom](https://github.com/rnystrom) (tbd)
+- Moved section controller mutations to `IGListBatchContext`, provided as a parameter when calling `-performBatchAnimated:updates:completion` on a section controller's `collectionContext`. All updates (insert, delete, reload item/section controller) must now be done inside a batch update block. [Ryan Nystrom](https://github.com/rnystrom) [(a15ea08)](https://github.com/Instagram/IGListKit/commit/a15ea0861492c8476bc9b1b92b0d9835814091c7)
 
 ```objc
 // OLD
@@ -52,13 +74,19 @@ This release closes the [3.0.0 milestone](https://github.com/Instagram/IGListKit
 } completion:nil];
 ```
 
-- `-[IGListCollectionContext containerSize]` no longer accounts for the content inset of the collection view when returning a size. If you require that behavior, you can now use `-[IGListCollectionContext insetContainerSize]`. [Ryan Nystrom](https://github.com/rnystrom) (tbd)
+- `-[IGListCollectionContext containerSize]` no longer accounts for the content inset of the collection view when returning a size. If you require that behavior, you can now use `-[IGListCollectionContext insetContainerSize]`. [Ryan Nystrom](https://github.com/rnystrom) [(623ff2a)](https://github.com/Instagram/IGListKit/commit/623ff2a8a85e0e2e8d0331ae3250d67985cd06b6)
 
-- `IGListCollectionView` has been **completely removed** in favor of using plain old `UICollectionView`. See discussion at [#409](https://github.com/Instagram/IGListKit/issues/409) for details. [Jesse Squires](https://github.com/jessesquires) [(tbd)](https://github.com/Instagram/IGListKit/pull/tbd)
+- `IGListCollectionView` has been **completely removed** in favor of using plain old `UICollectionView`. See discussion at [#409](https://github.com/Instagram/IGListKit/issues/409) for details. [Jesse Squires](https://github.com/jessesquires) [(2284ce3)](https://github.com/Instagram/IGListKit/commit/2284ce389708f62d99f48ff2ec15644f1ec59537)
 
 - `IGListBatchUpdateData` replaced its `NSSet` properties with `NSArray` instead. [Ryan Nystrom](https://github.com/rnystrom) [(#616)](https://github.com/Instagram/IGListKit/pull/616)
 
+- `IGListUpdatingDelegate` now requires method `-reloadItemInCollectionView:fromIndexPath:toIndexPath:` to handle reloading cells between index paths. [Ryan Nystrom](https://github.com/rnystrom) [(#657)](https://github.com/Instagram/IGListKit/pull/657)
+
+- `-[IGListCollectionContext sectionForSectionController:]` has been removed and replaced with the `NSInteger sectionIndex` property on `IGListSectionController`. [Andrew Monshizadeh](https://github.com/amonshiz) [#671](http://github.com/Instagram/IGListKit/pull/671)
+
 ### Enhancements
+
+- Added an initializer on `IGListAdapter` that does not take a `workingRangeSize` and defaults it to 0. [BasThomas](https://github.com/BasThomas) [(#686)](https://github.com/Instagram/IGListKit/pull/686)
 
 - Added `-[IGListAdapter visibleCellsForObject:]` API. [Sherlouk](https://github.com/Sherlouk) [(#442)](https://github.com/Instagram/IGListKit/pull/442)
 
@@ -71,6 +99,10 @@ This release closes the [3.0.0 milestone](https://github.com/Instagram/IGListKit
 - Added `-[IGListAdapter visibleIndexPathsForSectionController:]` API. [Malecks](https://github.com/Malecks) [(#465)](https://github.com/Instagram/IGListKit/pull/465)
 
 - Added `IGListBindingSectionController` which automatically binds view models to cells and animates updates at the cell level. [Ryan Nystrom](https://github.com/rnystrom) [(#494)](https://github.com/Instagram/IGListKit/pull/494)
+
+- Added `IGListGenericSectionController` to take advantage of Objective-C (and Swift) generics and automatically store strongly-typed references to the object powering your section controller. [Ryan Nystrom](https://github.com/rnystrom) ([301f147](https://github.com/Instagram/IGListKit/commit/301f1471c9a7a802320e07890f5e98f15ada4e2e))
+
+- Added a debug option for IGListKit that you can print to lldb via `po [IGListDebugger dump]`. [Ryan Nystrom](https://github.com/rnystrom) [(#617)](https://github.com/Instagram/IGListKit/pull/617)
 
 ### Fixes
 
@@ -100,6 +132,14 @@ This release closes the [3.0.0 milestone](https://github.com/Instagram/IGListKit
 
 - Fix a crash when inserting or deleting from the same index within the same batch-update application. [Ryan Nystrom](https://github.com/rnystrom) [(#616)](https://github.com/Instagram/IGListKit/pull/616)
 
+- `IGListSectionType` protocol was removed and its methods were absorted into the `IGListSectionController` base class with default implementations. [Ryan Nystrom](https://github.com/rnystrom) ([3102852](https://github.com/Instagram/IGListKit/commit/3102852ce258274e8727f9094695a9c331e1abf3))
+
+- When setting the collection view on `IGListAdapter`, its layout is now properly invalidated. [Jesse Squires](https://github.com/jessesquires) [(#677)](https://github.com/Instagram/IGListKit/pull/677)
+
+- Fixes a bug when reusing `UICollectionView`s with multiple `IGListAdapter`s in an embedded environment that would accidentally `nil` the `collectionView` property of another adapter. [Ryan Nystrom](https://github.com/rnystrom) [(#721)](https://github.com/Instagram/IGListKit/pull/721)
+
+- Fixes a bug where maintaining a reference to a section controller but not the list adapter in an async block could lead to calling `-[IGListAdapter sectionForSectionController:]` (or checking `-[IGListSectionController sectionIndex]`) and receiving an incorrect value. With the adapter check the value would be 0 because the adapter was `nil` and for the section controller property the value would be the last set index value. [Andrew Monshizadeh](https://github.com/amonshiz) [(#709)](https://github.com/Instagram/IGListKit/issues/709)
+
 2.1.0
 -----
 
@@ -120,8 +160,6 @@ This release closes the [2.1.0 milestone](https://github.com/Instagram/IGListKit
 - Added `allowsBackgroundReloading` flag (default `YES`) to `IGListAdapterUpdater` so users can configure this behavior as needed. [Adlai-Holler](https://github.com/Adlai-Holler) [(#375)](https://github.com/Instagram/IGListKit/pull/375)
 
 - `-[IGListAdapter updater]` is now public (read-only). [Adlai-Holler](https://github.com/Adlai-Holler) [(#379)](https://github.com/Instagram/IGListKit/pull/379)
-
-
 
 ### Fixes
 
